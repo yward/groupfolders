@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 /**
  * @copyright Copyright (c) 2018 Robin Appelman <robin@icewind.nl>
  *
@@ -21,8 +23,8 @@
 
 namespace OCA\GroupFolders\Versions;
 
-
 use OC\Files\FileInfo;
+use OC\Files\View;
 use OC\Hooks\BasicEmitter;
 use OC\User\User;
 use OCA\GroupFolders\Folder\FolderManager;
@@ -50,7 +52,7 @@ class GroupVersionsExpireManager extends BasicEmitter {
 		$this->dispatcher = $dispatcher;
 	}
 
-	public function expireAll() {
+	public function expireAll(): void {
 		$folders = $this->folderManager->getAllFolders();
 		foreach ($folders as $folder) {
 			$this->emit(self::class, 'enterFolder', [$folder]);
@@ -58,7 +60,11 @@ class GroupVersionsExpireManager extends BasicEmitter {
 		}
 	}
 
-	public function expireFolder($folder) {
+	/**
+	 * @param array{id: int, mount_point: string, groups: array<empty, empty>|array<array-key, int>, quota: int, size: int, acl: bool} $folder
+	 */
+	public function expireFolder(array $folder): void {
+		$view = new View('/__groupfolders/versions/' . $folder['id']);
 		$files = $this->versionsBackend->getAllVersionedFiles($folder);
 		$dummyUser = new User('', null, $this->dispatcher);
 		foreach ($files as $fileId => $file) {
@@ -68,7 +74,7 @@ class GroupVersionsExpireManager extends BasicEmitter {
 				foreach ($expireVersions as $version) {
 					/** @var GroupVersion $version */
 					$this->emit(self::class, 'deleteVersion', [$version]);
-					$version->getVersionFile()->delete();
+					$view->unlink('/' . $fileId . '/' . $version->getVersionFile()->getName());
 				}
 			} else {
 				// source file no longer exists

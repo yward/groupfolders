@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 /**
  * @copyright Copyright (c) 2019 Robin Appelman <robin@icewind.nl>
  *
@@ -29,12 +31,12 @@ use Sabre\Xml\XmlDeserializable;
 use Sabre\Xml\XmlSerializable;
 
 class Rule implements XmlSerializable, XmlDeserializable, \JsonSerializable {
-	const ACL = '{http://nextcloud.org/ns}acl';
-	const PERMISSIONS = '{http://nextcloud.org/ns}acl-permissions';
-	const MASK = '{http://nextcloud.org/ns}acl-mask';
-	const MAPPING_TYPE = '{http://nextcloud.org/ns}acl-mapping-type';
-	const MAPPING_ID = '{http://nextcloud.org/ns}acl-mapping-id';
-	const MAPPING_DISPLAY_NAME = '{http://nextcloud.org/ns}acl-mapping-display-name';
+	public const ACL = '{http://nextcloud.org/ns}acl';
+	public const PERMISSIONS = '{http://nextcloud.org/ns}acl-permissions';
+	public const MASK = '{http://nextcloud.org/ns}acl-mask';
+	public const MAPPING_TYPE = '{http://nextcloud.org/ns}acl-mapping-type';
+	public const MAPPING_ID = '{http://nextcloud.org/ns}acl-mapping-id';
+	public const MAPPING_DISPLAY_NAME = '{http://nextcloud.org/ns}acl-mapping-display-name';
 
 	private $userMapping;
 	private $fileId;
@@ -68,7 +70,7 @@ class Rule implements XmlSerializable, XmlDeserializable, \JsonSerializable {
 		return $this->permissions;
 	}
 
-	public function applyPermissions(int $permissions) {
+	public function applyPermissions(int $permissions): int {
 		$invertedMask = ~$this->mask;
 		// create a bitmask that has all inherit and allow bits set to 1 and all deny bits to 0
 		$denyMask = $invertedMask | $this->permissions;
@@ -80,7 +82,10 @@ class Rule implements XmlSerializable, XmlDeserializable, \JsonSerializable {
 		return $permissions | $allowMask;
 	}
 
-	function xmlSerialize(Writer $writer) {
+	/**
+	 * @return void
+	 */
+	public function xmlSerialize(Writer $writer) {
 		$data = [
 			self::ACL => [
 				self::MAPPING_TYPE => $this->getUserMapping()->getType(),
@@ -104,7 +109,7 @@ class Rule implements XmlSerializable, XmlDeserializable, \JsonSerializable {
 		];
 	}
 
-	static function xmlDeserialize(Reader $reader): Rule {
+	public static function xmlDeserialize(Reader $reader): Rule {
 		$elements = \Sabre\Xml\Deserializer\keyValue($reader);
 
 		return new Rule(
@@ -124,7 +129,7 @@ class Rule implements XmlSerializable, XmlDeserializable, \JsonSerializable {
 	 * @param array $rules
 	 * @return Rule
 	 */
-	static function mergeRules(array $rules): Rule {
+	public static function mergeRules(array $rules): Rule {
 		// or'ing the masks to get a new mask that masks all set permissions
 		$mask = array_reduce($rules, function (int $mask, Rule $rule) {
 			return $mask | $rule->getMask();

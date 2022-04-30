@@ -8,7 +8,7 @@ sign_dir=$(build_dir)/sign
 package_name=$(app_name)
 cert_dir=$(HOME)/.nextcloud/certificates
 webpack=node_modules/.bin/webpack
-version+=6.0.6
+version+=8.0.0
 
 jssources=$(wildcard js/*) $(wildcard js/*/*) $(wildcard css/*/*)  $(wildcard css/*)
 othersources=$(wildcard appinfo/*) $(wildcard css/*/*) $(wildcard controller/*/*) $(wildcard templates/*/*) $(wildcard log/*/*)
@@ -24,11 +24,11 @@ node_modules: package.json
 	npm install --deps
 
 build/main.js: node_modules $(jssources)
-	NODE_ENV=production $(webpack) --colors --display-error-details --config webpack.prod.config.js
+	npm run build
 
 .PHONY: watch
 watch: node_modules
-	node node_modules/.bin/webpack-dev-server --watch --hot --inline --port 3000 --public localcloud.icewind.me:444 --config webpack.dev.config.js
+	$(webpack) serve --hot --port 3000 --public localcloud.icewind.me:444 --config webpack.dev.config.js
 
 release: appstore create-tag
 

@@ -1,13 +1,16 @@
 OC.L10N.register(
     "groupfolders",
     {
-    "Folder name" : "Kausta nimi",
-    "Groups" : "Grupid",
-    "Quota" : "Kvoot",
     "Group folders" : "Grupikaustad",
     "Read" : "Lugemine",
+    "Write" : "Kirjuta",
     "Create" : "Loo",
     "Delete" : "Kustuta",
-    "Share" : "Jaga"
+    "Share" : "Jaga",
+    "You" : "Sina",
+    "Group" : "Grupp",
+    "Folder name" : "Kausta nimi",
+    "Groups" : "Grupid",
+    "Quota" : "Kvoot"
 },
 "nplurals=2; plural=(n != 1);");

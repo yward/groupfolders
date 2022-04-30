@@ -1,10 +1,11 @@
 OC.L10N.register(
     "groupfolders",
     {
-    "Folder name" : "قىسقۇچ ئاتى",
-    "Groups" : "گۇرۇپپا",
     "Create" : "قۇر",
     "Delete" : "ئۆچۈر",
-    "Share" : "ھەمبەھىر"
+    "Share" : "ھەمبەھىر",
+    "Group" : "Group",
+    "Folder name" : "قىسقۇچ ئاتى",
+    "Groups" : "گۇرۇپپا"
 },
-"nplurals=1; plural=0;");
+"nplurals=2; plural=(n != 1);");

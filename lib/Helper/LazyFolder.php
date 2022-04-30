@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 /**
  * @copyright Copyright (c) 2020, Roeland Jago Douma <roeland@famdouma.nl>
@@ -25,22 +26,12 @@ declare(strict_types=1);
 namespace OCA\GroupFolders\Helper;
 
 use OCP\Files\Folder;
-use OCP\Files\InvalidPathException;
 use OCP\Files\IRootFolder;
-use OCP\Files\Node;
 use OCP\Files\NotFoundException;
-use OCP\Files\NotPermittedException;
-use OCP\Files\Search\ISearchQuery;
-use OCP\Files\Storage;
-use OCP\Lock\LockedException;
 
 class LazyFolder implements Folder {
-
-	/** @var IRootFolder */
-	private $rootFolder;
-
-	/** @var Folder */
-	private $folder;
+	private IRootFolder $rootFolder;
+	private ?Folder $folder = null;
 
 	public function __construct(IRootFolder $rootFolder) {
 		$this->rootFolder = $rootFolder;

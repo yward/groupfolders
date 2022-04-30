@@ -1,10 +1,11 @@
 OC.L10N.register(
     "groupfolders",
     {
-    "Groups" : "Kumpulan",
-    "Quota" : "Kuota",
     "Create" : "Buat",
     "Delete" : "Padam",
-    "Share" : "Kongsi"
+    "Share" : "Kongsi",
+    "Group" : "Group",
+    "Groups" : "Kumpulan",
+    "Quota" : "Kuota"
 },
 "nplurals=1; plural=0;");

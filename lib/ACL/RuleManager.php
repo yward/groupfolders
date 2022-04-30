@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 /**
  * @copyright Copyright (c) 2019 Robin Appelman <robin@icewind.nl>
  *
@@ -24,16 +26,20 @@ namespace OCA\GroupFolders\ACL;
 use OCA\GroupFolders\ACL\UserMapping\IUserMapping;
 use OCA\GroupFolders\ACL\UserMapping\IUserMappingManager;
 use OCP\DB\QueryBuilder\IQueryBuilder;
+use OCP\EventDispatcher\IEventDispatcher;
 use OCP\IDBConnection;
 use OCP\IUser;
+use OCP\Log\Audit\CriticalActionPerformedEvent;
 
 class RuleManager {
-	private $connection;
-	private $userMappingManager;
+	private IDBConnection $connection;
+	private IUserMappingManager $userMappingManager;
+	private IEventDispatcher $eventDispatcher;
 
-	public function __construct(IDBConnection $connection, IUserMappingManager $userMappingManager) {
+	public function __construct(IDBConnection $connection, IUserMappingManager $userMappingManager, IEventDispatcher $eventDispatcher) {
 		$this->connection = $connection;
 		$this->userMappingManager = $userMappingManager;
+		$this->eventDispatcher = $eventDispatcher;
 	}
 
 	private function createRule(array $data): ?Rule {
@@ -69,7 +75,7 @@ class RuleManager {
 				);
 			}, $userMappings)));
 
-		$rows = $query->execute()->fetchAll();
+		$rows = $query->executeQuery()->fetchAll();
 
 		$result = [];
 		foreach ($rows as $row) {
@@ -93,24 +99,28 @@ class RuleManager {
 	public function getRulesForFilesByPath(IUser $user, int $storageId, array $filePaths): array {
 		$userMappings = $this->userMappingManager->getMappingsForUser($user);
 
-		$hashes = array_map(function (string $path) {
+		$hashes = array_map(function (string $path): string {
 			return md5($path);
 		}, $filePaths);
 
-		$query = $this->connection->getQueryBuilder();
-		$query->select(['f.fileid', 'mapping_type', 'mapping_id', 'mask', 'a.permissions', 'path'])
-			->from('group_folders_acl', 'a')
-			->innerJoin('a', 'filecache', 'f', $query->expr()->eq('f.fileid', 'a.fileid'))
-			->where($query->expr()->in('path_hash', $query->createNamedParameter($hashes, IQueryBuilder::PARAM_STR_ARRAY)))
-			->andWhere($query->expr()->eq('storage', $query->createNamedParameter($storageId, IQueryBuilder::PARAM_INT)))
-			->andWhere($query->expr()->orX(...array_map(function (IUserMapping $userMapping) use ($query) {
-				return $query->expr()->andX(
-					$query->expr()->eq('mapping_type', $query->createNamedParameter($userMapping->getType())),
-					$query->expr()->eq('mapping_id', $query->createNamedParameter($userMapping->getId()))
-				);
-			}, $userMappings)));
+		$rows = [];
+		foreach (array_chunk($hashes, 1000) as $chunk) {
+			$query = $this->connection->getQueryBuilder();
+			$query->select(['f.fileid', 'mapping_type', 'mapping_id', 'mask', 'a.permissions', 'path'])
+				->from('group_folders_acl', 'a')
+				->innerJoin('a', 'filecache', 'f', $query->expr()->eq('f.fileid', 'a.fileid'))
+				->where($query->expr()->in('path_hash', $query->createNamedParameter($chunk, IQueryBuilder::PARAM_STR_ARRAY)))
+				->andWhere($query->expr()->eq('storage', $query->createNamedParameter($storageId, IQueryBuilder::PARAM_INT)))
+				->andWhere($query->expr()->orX(...array_map(function (IUserMapping $userMapping) use ($query) {
+					return $query->expr()->andX(
+						$query->expr()->eq('mapping_type', $query->createNamedParameter($userMapping->getType())),
+						$query->expr()->eq('mapping_id', $query->createNamedParameter($userMapping->getId()))
+					);
+				}, $userMappings)));
 
-		$rows = $query->execute()->fetchAll();
+			$rows = array_merge($rows, $query->executeQuery()->fetchAll());
+		}
+
 
 		$result = [];
 		foreach ($filePaths as $path) {
@@ -153,7 +163,7 @@ class RuleManager {
 				)
 			);
 
-		$rows = $query->execute()->fetchAll();
+		$rows = $query->executeQuery()->fetchAll();
 
 		$result = [];
 		foreach ($rows as $row) {
@@ -177,7 +187,7 @@ class RuleManager {
 			->where($query->expr()->eq('path_hash', $query->createNamedParameter(md5($path), IQueryBuilder::PARAM_STR)))
 			->andWhere($query->expr()->eq('storage', $query->createNamedParameter($storageId, IQueryBuilder::PARAM_INT)));
 
-		return (int)$query->execute()->fetch(\PDO::FETCH_COLUMN);
+		return (int)$query->executeQuery()->fetch(\PDO::FETCH_COLUMN);
 	}
 
 	/**
@@ -196,7 +206,7 @@ class RuleManager {
 			->where($query->expr()->in('path_hash', $query->createNamedParameter($hashes, IQueryBuilder::PARAM_STR_ARRAY)))
 			->andWhere($query->expr()->eq('storage', $query->createNamedParameter($storageId, IQueryBuilder::PARAM_INT)));
 
-		$rows = $query->execute()->fetchAll();
+		$rows = $query->executeQuery()->fetchAll();
 
 		return $this->rulesByPath($rows);
 	}
@@ -230,7 +240,7 @@ class RuleManager {
 			))
 			->andWhere($query->expr()->eq('storage', $query->createNamedParameter($storageId, IQueryBuilder::PARAM_INT)));
 
-		$rows = $query->execute()->fetchAll();
+		$rows = $query->executeQuery()->fetchAll();
 
 		return $this->rulesByPath($rows);
 	}
@@ -260,7 +270,7 @@ class RuleManager {
 				);
 			}, $userMappings)));
 
-		$rows = $query->execute()->fetchAll();
+		$rows = $query->executeQuery()->fetchAll();
 
 		return $this->rulesByPath($rows);
 	}
@@ -272,10 +282,10 @@ class RuleManager {
 			->where($query->expr()->eq('fileid', $query->createNamedParameter($fileId, IQueryBuilder::PARAM_INT)))
 			->andWhere($query->expr()->eq('mapping_type', $query->createNamedParameter($mapping->getType())))
 			->andWhere($query->expr()->eq('mapping_id', $query->createNamedParameter($mapping->getId())));
-		return (bool)$query->execute()->fetch();
+		return (bool)$query->executeQuery()->fetch();
 	}
 
-	public function saveRule(Rule $rule) {
+	public function saveRule(Rule $rule): void {
 		if ($this->hasRule($rule->getUserMapping(), $rule->getFileId())) {
 			$query = $this->connection->getQueryBuilder();
 			$query->update('group_folders_acl')
@@ -284,7 +294,27 @@ class RuleManager {
 				->where($query->expr()->eq('fileid', $query->createNamedParameter($rule->getFileId(), IQueryBuilder::PARAM_INT)))
 				->andWhere($query->expr()->eq('mapping_type', $query->createNamedParameter($rule->getUserMapping()->getType())))
 				->andWhere($query->expr()->eq('mapping_id', $query->createNamedParameter($rule->getUserMapping()->getId())));
-			$query->execute();
+			$query->executeStatement();
+
+			if ($rule->getUserMapping()->getType() === 'user') {
+				$logMessage = 'The ACL rule was updated to permission "%s" and mask "%s" for file/folder with id "%s" for user "%s"';
+				$params = [
+					'permissions' => $rule->getPermissions(),
+					'mask' => $rule->getMask(),
+					'fileId' => $rule->getFileId(),
+					'user' => $rule->getUserMapping()->getDisplayName() . ' (' . $rule->getUserMapping()->getId() . ')',
+				];
+			} else {
+				$logMessage = 'The ACL rule was updated to permission "%s" and mask "%s" for file/folder with id "%s" for group "%s"';
+				$params = [
+					'permissions' => $rule->getPermissions(),
+					'mask' => $rule->getMask(),
+					'fileId' => $rule->getFileId(),
+					'user' => $rule->getUserMapping()->getDisplayName(),
+				];
+			}
+
+			$this->eventDispatcher->dispatchTyped(new CriticalActionPerformedEvent($logMessage, $params));
 		} else {
 			$query = $this->connection->getQueryBuilder();
 			$query->insert('group_folders_acl')
@@ -295,16 +325,52 @@ class RuleManager {
 					'mask' => $query->createNamedParameter($rule->getMask(), IQueryBuilder::PARAM_INT),
 					'permissions' => $query->createNamedParameter($rule->getPermissions(), IQueryBuilder::PARAM_INT)
 				]);
-			$query->execute();
+			$query->executeStatement();
+
+			if ($rule->getUserMapping()->getType() === 'user') {
+				$logMessage = 'A new ACL rule was created to permission "%s" and mask "%s" for file/folder with id "%s" for user "%s"';
+				$params = [
+					'permissions' => $rule->getPermissions(),
+					'mask' => $rule->getMask(),
+					'fileId' => $rule->getFileId(),
+					'user' => $rule->getUserMapping()->getDisplayName() . ' (' . $rule->getUserMapping()->getId() . ')',
+				];
+			} else {
+				$logMessage = 'A new ACL rule was created to permission "%s" and mask "%s" for file/folder with id "%s" for group "%s"';
+				$params = [
+					'permissions' => $rule->getPermissions(),
+					'mask' => $rule->getMask(),
+					'fileId' => $rule->getFileId(),
+					'group' => $rule->getUserMapping()->getDisplayName(),
+				];
+			}
+
+			$this->eventDispatcher->dispatchTyped(new CriticalActionPerformedEvent($logMessage, $params));
 		}
 	}
 
-	public function deleteRule(Rule $rule) {
+	public function deleteRule(Rule $rule): void {
 		$query = $this->connection->getQueryBuilder();
 		$query->delete('group_folders_acl')
 			->where($query->expr()->eq('fileid', $query->createNamedParameter($rule->getFileId(), IQueryBuilder::PARAM_INT)))
 			->andWhere($query->expr()->eq('mapping_type', $query->createNamedParameter($rule->getUserMapping()->getType())))
 			->andWhere($query->expr()->eq('mapping_id', $query->createNamedParameter($rule->getUserMapping()->getId())));
-		$query->execute();
+		$query->executeStatement();
+
+		if ($rule->getUserMapping()->getType() === 'user') {
+			$logMessage = 'The ACL rule was deleted for file/folder with id: "%s" for the user "%s"';
+			$params = [
+				'fileId' => $rule->getFileId(),
+				'user' => $rule->getUserMapping()->getDisplayName() . ' (' . $rule->getUserMapping()->getId() . ')',
+			];
+		} else {
+			$logMessage = 'The ACL rule was deleted for file/folder with id: "%s" for the group "%s"';
+			$params = [
+				'fileId' => $rule->getFileId(),
+				'group' => $rule->getUserMapping()->getDisplayName(),
+			];
+		}
+
+		$this->eventDispatcher->dispatchTyped(new CriticalActionPerformedEvent($logMessage, $params));
 	}
 }

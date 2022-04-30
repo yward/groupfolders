@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 /**
  * @copyright Copyright (c) 2018 Robin Appelman <robin@icewind.nl>
  *
@@ -28,7 +30,7 @@ use OCA\Files_Versions\Versions\IVersion;
  * TODO: move this to files_versions to be reused to apps in nc16
  */
 class ExpireManager {
-	const MAX_VERSIONS_PER_INTERVAL = [
+	public const MAX_VERSIONS_PER_INTERVAL = [
 		//first 10sec, one version every 2sec
 		1 => ['intervalEndsAfter' => 10, 'step' => 2],
 		//next minute, one version every 10sec
@@ -51,13 +53,13 @@ class ExpireManager {
 	}
 
 	/**
-	 * get list of files we want to expire
+	 * Get list of files we want to expire
 	 *
 	 * @param integer $time
 	 * @param IVersion[] $versions
 	 * @return IVersion[]
 	 */
-	protected function getAutoExpireList(int $time, $versions) {
+	protected function getAutoExpireList(int $time, array $versions): array {
 		if (!$versions) {
 			return [];
 		}
@@ -116,7 +118,7 @@ class ExpireManager {
 	 * @param boolean $quotaExceeded
 	 * @return IVersion[]
 	 */
-	public function getExpiredVersion($versions, int $time, bool $quotaExceeded) {
+	public function getExpiredVersion(array $versions, int $time, bool $quotaExceeded): array {
 		if ($this->expiration->shouldAutoExpire()) {
 			$autoExpire = $this->getAutoExpireList($time, $versions);
 		} else {

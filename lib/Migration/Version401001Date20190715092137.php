@@ -26,7 +26,6 @@ declare(strict_types=1);
 namespace OCA\GroupFolders\Migration;
 
 use Closure;
-use Doctrine\DBAL\Types\Type;
 use OCP\DB\ISchemaWrapper;
 use OCP\Migration\SimpleMigrationStep;
 use OCP\Migration\IOutput;
@@ -35,7 +34,6 @@ use OCP\Migration\IOutput;
  * Auto-generated migration step: Please modify to your needs!
  */
 class Version401001Date20190715092137 extends SimpleMigrationStep {
-
 	public function changeSchema(IOutput $output, Closure $schemaClosure, array $options) {
 		/** @var ISchemaWrapper $schema */
 		$schema = $schemaClosure();
@@ -55,7 +53,6 @@ class Version401001Date20190715092137 extends SimpleMigrationStep {
 				'length' => 64,
 			]);
 			$table->setPrimaryKey(['folder_id', 'mapping_type', 'mapping_id']);
-			$table->addUniqueIndex(['folder_id', 'mapping_type', 'mapping_id'], 'groups_folder_manage_unique');
 		}
 
 		return $schema;

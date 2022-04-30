@@ -34,12 +34,14 @@ return ['routes' => [
 	[
 		'name' => 'Folder#removeGroup',
 		'url' => '/folders/{id}/groups/{group}',
-		'verb' => 'DELETE'
+		'verb' => 'DELETE',
+		'requirements' => ['group' => '.+']
 	],
 	[
 		'name' => 'Folder#setPermissions',
 		'url' => '/folders/{id}/groups/{group}',
-		'verb' => 'POST'
+		'verb' => 'POST',
+		'requirements' => ['group' => '.+']
 	],
 	[
 		'name' => 'Folder#setManageACL',
@@ -65,6 +67,11 @@ return ['routes' => [
 	[
 		'name' => 'Folder#aclMappingSearch',
 		'url' => '/folders/{id}/search',
+		'verb' => 'GET'
+	],
+	[
+		'name' => 'Delegation#getAllGroups',
+		'url' => 'delegation/groups',
 		'verb' => 'GET'
 	]
 ]];

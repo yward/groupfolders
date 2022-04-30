@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 /**
  * @copyright Copyright (c) 2019 Robin Appelman <robin@icewind.nl>
  *
@@ -29,7 +31,6 @@ use OCP\Constants;
 use OCP\Files\IRootFolder;
 use OCP\Files\Mount\IMountPoint;
 use OCP\IUser;
-use OCP\IUserSession;
 use Test\TestCase;
 
 class ACLManagerTest extends TestCase {
@@ -55,16 +56,20 @@ class ACLManagerTest extends TestCase {
 		$rootFolder = $this->createMock(IRootFolder::class);
 		$rootFolder->method('getMountPoint')
 			->willReturn($rootMountPoint);
-		$this->aclManager = new ACLManager($this->ruleManager, $this->user, function() use ($rootFolder) {
+		$this->aclManager = new ACLManager($this->ruleManager, $this->user, function () use ($rootFolder) {
 			return $rootFolder;
 		});
 		$this->dummyMapping = $this->createMock(IUserMapping::class);
 
 		$this->ruleManager->method('getRulesForFilesByPath')
 			->willReturnCallback(function (IUser $user, int $storageId, array $paths) {
-				return array_filter($this->rules, function (string $path) use ($paths) {
+				// fill with empty in case no rule was found
+				$rules = array_fill_keys($paths, []);
+				$actualRules = array_filter($this->rules, function (string $path) use ($paths) {
 					return array_search($path, $paths) !== false;
 				}, ARRAY_FILTER_USE_KEY);
+
+				return array_merge($rules, $actualRules);
 			});
 	}
 
@@ -74,7 +79,6 @@ class ACLManagerTest extends TestCase {
 	}
 
 	public function testGetACLPermissionsForPath() {
-
 		$this->rules = [
 			'foo' => [
 				new Rule($this->dummyMapping, 10, Constants::PERMISSION_READ + Constants::PERMISSION_UPDATE, Constants::PERMISSION_READ), // read only

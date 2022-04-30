@@ -1,11 +1,14 @@
 OC.L10N.register(
     "groupfolders",
     {
-    "Folder name" : "Nom del dorsièr",
-    "Groups" : "Gropes",
     "Read" : "Legit",
     "Create" : "Crear",
     "Delete" : "Suprimir",
-    "Share" : "Partejar"
+    "Share" : "Partejar",
+    "You" : "Vos",
+    "Group" : "Grop",
+    "Folder name" : "Nom del dorsièr",
+    "Groups" : "Gropes",
+    "Quota" : "Quota"
 },
 "nplurals=2; plural=(n > 1);");

@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 /**
  * @copyright Copyright (c) 2018 Robin Appelman <robin@icewind.nl>
  *
@@ -23,7 +25,6 @@ namespace OCA\GroupFolders\Versions;
 
 use OCA\Files_Versions\Versions\IVersion;
 use OCA\Files_Versions\Versions\IVersionBackend;
-use OCA\GroupFolders\Folder\FolderManager;
 use OCA\GroupFolders\Mount\GroupMountPoint;
 use OCA\GroupFolders\Mount\MountProvider;
 use OCP\AppFramework\Utility\ITimeFactory;
@@ -34,21 +35,20 @@ use OCP\Files\Node;
 use OCP\Files\NotFoundException;
 use OCP\Files\Storage\IStorage;
 use OCP\IUser;
+use OCP\Constants;
+use Psr\Log\LoggerInterface;
 
 class VersionsBackend implements IVersionBackend {
-	/** @var Folder */
-	private $appFolder;
+	private Folder $appFolder;
+	private MountProvider $mountProvider;
+	private ITimeFactory $timeFactory;
+	private LoggerInterface $logger;
 
-	/** @var MountProvider */
-	private $mountProvider;
-
-	/** @var ITimeFactory */
-	private $timeFactory;
-
-	public function __construct(Folder $appFolder, MountProvider $mountProvider, ITimeFactory $timeFactory) {
+	public function __construct(Folder $appFolder, MountProvider $mountProvider, ITimeFactory $timeFactory, LoggerInterface $logger) {
 		$this->appFolder = $appFolder;
 		$this->mountProvider = $mountProvider;
 		$this->timeFactory = $timeFactory;
+		$this->logger = $logger;
 	}
 
 	public function useBackendForStorage(IStorage $storage): bool {
@@ -62,7 +62,10 @@ class VersionsBackend implements IVersionBackend {
 				$folderId = $mount->getFolderId();
 				/** @var Folder $versionsFolder */
 				$versionsFolder = $this->getVersionsFolder($mount->getFolderId())->get((string)$file->getId());
-				return array_map(function (File $versionFile) use ($file, $user, $folderId) {
+				return array_map(function (Node $versionFile) use ($file, $user, $folderId) {
+					if ($versionFile instanceof Folder) {
+						$this->logger->error('Found an unexpected subfolder inside the groupfolder version folder.');
+					}
 					return new GroupVersion(
 						(int)$versionFile->getName(),
 						(int)$versionFile->getName(),
@@ -85,6 +88,9 @@ class VersionsBackend implements IVersionBackend {
 		}
 	}
 
+	/**
+	 * @return void
+	 */
 	public function createVersion(IUser $user, FileInfo $file) {
 		$mount = $file->getMountPoint();
 		if ($mount instanceof GroupMountPoint) {
@@ -93,9 +99,9 @@ class VersionsBackend implements IVersionBackend {
 
 			try {
 				/** @var Folder $versionFolder */
-				$versionFolder = $versionsFolder->get($file->getId());
+				$versionFolder = $versionsFolder->get((string)$file->getId());
 			} catch (NotFoundException $e) {
-				$versionFolder = $versionsFolder->newFolder($file->getId());
+				$versionFolder = $versionsFolder->newFolder((string)$file->getId());
 			}
 
 			$versionMount = $versionFolder->getMountPoint();
@@ -111,10 +117,11 @@ class VersionsBackend implements IVersionBackend {
 		}
 	}
 
-	public function rollback(IVersion $version) {
+	public function rollback(IVersion $version): void {
 		if ($version instanceof GroupVersion) {
 			$this->createVersion($version->getUser(), $version->getSourceFile());
 
+			/** @var GroupMountPoint $targetMount */
 			$targetMount = $version->getSourceFile()->getMountPoint();
 			$targetCache = $targetMount->getStorage()->getCache();
 			$versionMount = $version->getVersionFile()->getMountPoint();
@@ -124,7 +131,7 @@ class VersionsBackend implements IVersionBackend {
 			$versionInternalPath = $version->getVersionFile()->getInternalPath();
 
 			$targetMount->getStorage()->copyFromStorage($versionMount->getStorage(), $versionInternalPath, $targetInternalPath);
-			$versionMount->getStorage()->getCache()->copyFromCache($targetCache, $versionCache->get($versionInternalPath), $versionInternalPath);
+			$versionMount->getStorage()->getCache()->copyFromCache($targetCache, $versionCache->get($versionInternalPath), $targetMount->getSourcePath() . '/' . $targetInternalPath);
 		}
 	}
 
@@ -138,36 +145,41 @@ class VersionsBackend implements IVersionBackend {
 
 	public function getVersionFile(IUser $user, FileInfo $sourceFile, $revision): File {
 		$mount = $sourceFile->getMountPoint();
-		if ($mount instanceof GroupMountPoint) {
-			try {
-				/** @var Folder $versionsFolder */
-				$versionsFolder = $this->getVersionsFolder($mount->getFolderId())->get($sourceFile->getId());
-				return $versionsFolder->get((string)$revision);
-			} catch (NotFoundException $e) {
-				return null;
-			}
-		} else {
-			return null;
+		if (!($mount instanceof GroupMountPoint)) {
+			throw new \LogicException('Trying to getVersionFile from a file not in a mounted group folder');
+		}
+		try {
+			/** @var Folder $versionsFolder */
+			$versionsFolder = $this->getVersionsFolder($mount->getFolderId())->get((string)$sourceFile->getId());
+			$file = $versionsFolder->get((string)$revision);
+			assert($file instanceof File);
+			return $file;
+		} catch (NotFoundException $e) {
+			throw new \LogicException('Trying to getVersionFile from a file that doesn\'t exist');
 		}
 	}
 
 	/**
-	 * @param array $folder
+	 * @param array{id: int, mount_point: string, groups: array<empty, empty>|mixed, quota: mixed, size: int, acl: bool} $folder
 	 * @return (FileInfo|null)[] [$fileId => FileInfo|null]
 	 */
 	public function getAllVersionedFiles(array $folder) {
 		$versionsFolder = $this->getVersionsFolder($folder['id']);
-		$mount = $this->mountProvider->getMount($folder['id'], '/dummyuser/files/' . $folder['mount_point'], $folder['groups'], $folder['quota']);
+		$mount = $this->mountProvider->getMount($folder['id'], '/dummyuser/files/' . $folder['mount_point'], Constants::PERMISSION_ALL, $folder['quota']);
+		if ($mount === null) {
+			$this->logger->error('Tried to get all the versioned files from a non existing mountpoint');
+			return [];
+		}
 		try {
 			$contents = $versionsFolder->getDirectoryListing();
 		} catch (NotFoundException $e) {
 			return [];
 		}
 
-		$fileIds = array_map(function (Node $node) use ($mount) {
+		$fileIds = array_map(function (Node $node) use ($mount): int {
 			return (int)$node->getName();
 		}, $contents);
-		$files = array_map(function (int $fileId) use ($mount) {
+		$files = array_map(function (int $fileId) use ($mount): ?FileInfo {
 			$cacheEntry = $mount->getStorage()->getCache()->get($fileId);
 			if ($cacheEntry) {
 				return new \OC\Files\FileInfo($mount->getMountPoint() . '/' . $cacheEntry->getPath(), $mount->getStorage(), $cacheEntry->getPath(), $cacheEntry, $mount);
@@ -178,26 +190,21 @@ class VersionsBackend implements IVersionBackend {
 		return array_combine($fileIds, $files);
 	}
 
-	public function deleteAllVersionsForFile(int $folderId, int $fileId) {
+	public function deleteAllVersionsForFile(int $folderId, int $fileId): void {
 		$versionsFolder = $this->getVersionsFolder($folderId);
 		try {
 			$versionsFolder->get((string)$fileId)->delete();
 		} catch (NotFoundException $e) {
-
 		}
 	}
 
-	/**
-	 * @param $folderId
-	 * @return Folder
-	 */
-	private function getVersionsFolder(int $folderId) {
+	private function getVersionsFolder(int $folderId): Folder {
 		try {
 			return $this->appFolder->get('versions/' . $folderId);
 		} catch (NotFoundException $e) {
 			/** @var Folder $trashRoot */
 			$trashRoot = $this->appFolder->nodeExists('versions') ? $this->appFolder->get('versions') : $this->appFolder->newFolder('versions');
-			return $trashRoot->newFolder($folderId);
+			return $trashRoot->newFolder((string)$folderId);
 		}
 	}
 }

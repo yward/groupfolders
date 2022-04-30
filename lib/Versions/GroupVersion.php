@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 /**
  * @copyright Copyright (c) 2018 Robin Appelman <robin@icewind.nl>
  *
@@ -28,8 +30,10 @@ use OCP\Files\FileInfo;
 use OCP\IUser;
 
 class GroupVersion extends Version {
+	/** @var File */
 	private $versionFile;
 
+	/** @var int */
 	private $folderId;
 
 	public function __construct(

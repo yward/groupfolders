@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 /**
  * @copyright Copyright (c) 2018 Robin Appelman <robin@icewind.nl>
  *
@@ -21,22 +23,18 @@
 
 namespace OCA\GroupFolders\Command;
 
-
 use OC\Core\Command\Base;
 use OCA\GroupFolders\Folder\FolderManager;
-use OCP\Files\IRootFolder;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 
-class Create  extends Base {
-	private $folderManager;
-	private $rootFolder;
+class Create extends Base {
+	private FolderManager $folderManager;
 
-	public function __construct(FolderManager $folderManager, IRootFolder $rootFolder) {
+	public function __construct(FolderManager $folderManager) {
 		parent::__construct();
 		$this->folderManager = $folderManager;
-		$this->rootFolder = $rootFolder;
 	}
 
 	protected function configure() {
@@ -49,5 +47,6 @@ class Create  extends Base {
 
 	protected function execute(InputInterface $input, OutputInterface $output) {
 		$this->folderManager->createFolder($input->getArgument('name'));
+		return 0;
 	}
 }

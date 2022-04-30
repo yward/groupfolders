@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 /**
  * @copyright Copyright (c) 2019 Robin Appelman <robin@icewind.nl>
  *
@@ -28,13 +30,13 @@ use OCP\Files\Cache\ICacheEvent;
 use Symfony\Component\EventDispatcher\EventDispatcher;
 
 class CacheListener {
-	private $eventDispatcher;
+	private EventDispatcher $eventDispatcher;
 
 	public function __construct(EventDispatcher $eventDispatcher) {
 		$this->eventDispatcher = $eventDispatcher;
 	}
 
-	public function listen() {
+	public function listen(): void {
 		$this->eventDispatcher->addListener(CacheInsertEvent::class, [$this, 'onCacheEvent'], 99999);
 		$this->eventDispatcher->addListener(CacheUpdateEvent::class, [$this, 'onCacheEvent'], 99999);
 	}

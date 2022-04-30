@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 /**
  * @copyright Copyright (c) 2019 Robin Appelman <robin@icewind.nl>
  *
@@ -25,24 +27,24 @@ use OC\Cache\CappedMemoryCache;
 use OCP\Constants;
 use OCP\Files\IRootFolder;
 use OCP\IUser;
-use OCP\IUserSession;
 
 class ACLManager {
-	private $ruleManager;
-	private $ruleCache;
-	private $user;
-	/** @var int|null */
-	private $rootStorageId = null;
+	private RuleManager $ruleManager;
+	private CappedMemoryCache $ruleCache;
+	private IUser $user;
+	private ?int $rootStorageId;
+	/** @var callable */
 	private $rootFolderProvider;
 
-	public function __construct(RuleManager $ruleManager, IUser $user, callable $rootFolderProvider) {
+	public function __construct(RuleManager $ruleManager, IUser $user, callable $rootFolderProvider, ?int $rootStorageId = null) {
 		$this->ruleManager = $ruleManager;
 		$this->ruleCache = new CappedMemoryCache();
 		$this->user = $user;
 		$this->rootFolderProvider = $rootFolderProvider;
+		$this->rootStorageId = $rootStorageId;
 	}
 
-	private function getRootStorageId() {
+	private function getRootStorageId(): int {
 		if ($this->rootStorageId === null) {
 			$provider = $this->rootFolderProvider;
 			/** @var IRootFolder $rootFolder */
@@ -53,40 +55,31 @@ class ACLManager {
 		return $this->rootStorageId;
 	}
 
-	private function pathsAreCached(array $paths): bool {
-		foreach ($paths as $path) {
-			if (!$this->ruleCache->hasKey($path)) {
-				return false;
-			}
-		}
-		return true;
-	}
-
 	/**
 	 * @param int $folderId
 	 * @param array $paths
 	 * @return (Rule[])[]
 	 */
 	private function getRules(array $paths): array {
-		if ($this->pathsAreCached($paths)) {
-			$rules = array_combine($paths, array_map(function (string $path) {
-				return $this->ruleCache->get($path);
-			}, $paths));
-		} else {
-			$rules = $this->ruleManager->getRulesForFilesByPath($this->user, $this->getRootStorageId(), $paths);
-			foreach ($rules as $path => $rulesForPath) {
-				$this->ruleCache->set($path, $rulesForPath);
-			}
+		// beware: adding new rules to the cache besides the cap
+		// might discard former cached entries, so we can't assume they'll stay
+		// cached, so we read everything out initially to be able to return it
+		$rules = array_combine($paths, array_map(function (string $path): ?array {
+			return $this->ruleCache->get($path);
+		}, $paths));
 
-			if (count($paths) > 2) {
-				// also cache the direct sibling since it's likely that we'll be needing those later
-				$directParent = $paths[1];
-				$siblingRules = $this->ruleManager->getRulesForFilesByParent($this->user, $this->getRootStorageId(), $directParent);
-				foreach ($siblingRules as $path => $rulesForPath) {
-					$this->ruleCache->set($path, $rulesForPath);
-				}
+		$nonCachedPaths = array_filter($paths, function (string $path) use ($rules): bool {
+			return !isset($rules[$path]);
+		});
+
+		if (!empty($nonCachedPaths)) {
+			$newRules = $this->ruleManager->getRulesForFilesByPath($this->user, $this->getRootStorageId(), $nonCachedPaths);
+			foreach ($newRules as $path => $rulesForPath) {
+				$this->ruleCache->set($path, $rulesForPath);
+				$rules[$path] = $rulesForPath;
 			}
 		}
+
 		ksort($rules);
 
 		return $rules;
@@ -109,11 +102,19 @@ class ACLManager {
 		return $paths;
 	}
 
+	public function preloadPaths(array $paths): void {
+		$allPaths = [];
+		foreach ($paths as $path) {
+			$allPaths = array_unique(array_merge($allPaths, $this->getParents($path)));
+		}
+		$this->getRules($allPaths);
+	}
+
 	public function getACLPermissionsForPath(string $path): int {
 		$path = ltrim($path, '/');
 		$rules = $this->getRules($this->getParents($path));
 
-		return array_reduce($rules, function (int $permissions, array $rules) {
+		return array_reduce($rules, function (int $permissions, array $rules): int {
 			$mergedRule = Rule::mergeRules($rules);
 			return $mergedRule->applyPermissions($permissions);
 		}, Constants::PERMISSION_ALL);
@@ -129,7 +130,7 @@ class ACLManager {
 		$path = ltrim($path, '/');
 		$rules = $this->ruleManager->getRulesForPrefix($this->user, $this->getRootStorageId(), $path);
 
-		return array_reduce($rules, function (int $permissions, array $rules) {
+		return array_reduce($rules, function (int $permissions, array $rules): int {
 			$mergedRule = Rule::mergeRules($rules);
 
 			$invertedMask = ~$mergedRule->getMask();

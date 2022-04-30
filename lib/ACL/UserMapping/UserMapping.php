@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 /**
  * @copyright Copyright (c) 2019 Robin Appelman <robin@icewind.nl>
  *
@@ -22,9 +24,10 @@
 namespace OCA\GroupFolders\ACL\UserMapping;
 
 class UserMapping implements IUserMapping {
-	private $type;
-	private $id;
-	private $displayName;
+	/** @var 'user'|'group' * */
+	private string $type;
+	private string $id;
+	private string $displayName;
 
 	public function __construct(string $type, string $id, string $displayName = null) {
 		$this->type = $type;
@@ -32,6 +35,7 @@ class UserMapping implements IUserMapping {
 		$this->displayName = $displayName ?? $id;
 	}
 
+	/** @return 'user'|'group' */
 	public function getType(): string {
 		return $this->type;
 	}

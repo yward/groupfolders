@@ -1,8 +1,9 @@
 { "translations": {
-    "Folder name" : "قىسقۇچ ئاتى",
-    "Groups" : "گۇرۇپپا",
     "Create" : "قۇر",
     "Delete" : "ئۆچۈر",
-    "Share" : "ھەمبەھىر"
-},"pluralForm" :"nplurals=1; plural=0;"
+    "Share" : "ھەمبەھىر",
+    "Group" : "Group",
+    "Folder name" : "قىسقۇچ ئاتى",
+    "Groups" : "گۇرۇپپا"
+},"pluralForm" :"nplurals=2; plural=(n != 1);"
 }

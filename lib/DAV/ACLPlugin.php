@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 /**
  * @copyright Copyright (c) 2019 Robin Appelman <robin@icewind.nl>
  *
@@ -27,7 +29,6 @@ use OCA\GroupFolders\ACL\RuleManager;
 use OCA\GroupFolders\Folder\FolderManager;
 use OCA\GroupFolders\Mount\GroupMountPoint;
 use OCP\Constants;
-use OCP\IGroupManager;
 use OCP\IUser;
 use OCP\IUserSession;
 use Sabre\DAV\INode;
@@ -38,41 +39,34 @@ use Sabre\DAV\ServerPlugin;
 use Sabre\Xml\Reader;
 
 class ACLPlugin extends ServerPlugin {
-	const ACL_ENABLED = '{http://nextcloud.org/ns}acl-enabled';
-	const ACL_CAN_MANAGE = '{http://nextcloud.org/ns}acl-can-manage';
-	const ACL_LIST = '{http://nextcloud.org/ns}acl-list';
-	const INHERITED_ACL_LIST = '{http://nextcloud.org/ns}inherited-acl-list';
-	const GROUP_FOLDER_ID = '{http://nextcloud.org/ns}group-folder-id';
+	public const ACL_ENABLED = '{http://nextcloud.org/ns}acl-enabled';
+	public const ACL_CAN_MANAGE = '{http://nextcloud.org/ns}acl-can-manage';
+	public const ACL_LIST = '{http://nextcloud.org/ns}acl-list';
+	public const INHERITED_ACL_LIST = '{http://nextcloud.org/ns}inherited-acl-list';
+	public const GROUP_FOLDER_ID = '{http://nextcloud.org/ns}group-folder-id';
 
-
-	/** @var Server */
-	private $server;
-
-	private $ruleManager;
-	private $folderManager;
-	private $userSession;
-	private $groupManager;
-	/** @var IUser */
-	private $user;
+	private ?Server $server = null;
+	private RuleManager $ruleManager;
+	private FolderManager $folderManager;
+	private IUserSession $userSession;
+	private ?IUser $user = null;
 
 	public function __construct(
 		RuleManager $ruleManager,
 		IUserSession $userSession,
-		IGroupManager $groupManager,
 		FolderManager $folderManager
 	) {
 		$this->ruleManager = $ruleManager;
 		$this->userSession = $userSession;
-		$this->groupManager = $groupManager;
 		$this->folderManager = $folderManager;
 	}
 
-	private function isAdmin($path): bool {
+	private function isAdmin(string $path): bool {
 		$folderId = $this->folderManager->getFolderByPath($path);
-		return $this->folderManager->canManageACL($folderId, $this->user->getUID());
+		return $this->folderManager->canManageACL($folderId, $this->user);
 	}
 
-	public function initialize(Server $server) {
+	public function initialize(Server $server): void {
 		$this->server = $server;
 		$this->user = $user = $this->userSession->getUser();
 
@@ -80,13 +74,12 @@ class ACLPlugin extends ServerPlugin {
 		$this->server->on('propPatch', [$this, 'propPatch']);
 
 		$this->server->xml->elementMap[Rule::ACL] = Rule::class;
-		$this->server->xml->elementMap[self::ACL_LIST] = function (Reader $reader) {
+		$this->server->xml->elementMap[self::ACL_LIST] = function (Reader $reader): array {
 			return \Sabre\Xml\Deserializer\repeatingElements($reader, Rule::ACL);
 		};
 	}
 
 	/**
-	 * @param string $path
 	 * @return string[]
 	 */
 	private function getParents(string $path): array {
@@ -102,7 +95,7 @@ class ACLPlugin extends ServerPlugin {
 		return $paths;
 	}
 
-	public function propFind(PropFind $propFind, INode $node) {
+	public function propFind(PropFind $propFind, INode $node): void {
 		if (!$node instanceof Node) {
 			return;
 		}
@@ -167,8 +160,7 @@ class ACLPlugin extends ServerPlugin {
 
 		$propFind->handle(self::ACL_ENABLED, function () use ($fileInfo) {
 			$folderId = $this->folderManager->getFolderByPath($fileInfo->getPath());
-			$folder = $this->folderManager->getFolder($folderId, -1);
-			return $folder['acl'];
+			return $this->folderManager->getFolderAclEnabled($folderId);
 		});
 
 		$propFind->handle(self::ACL_CAN_MANAGE, function () use ($fileInfo) {
@@ -176,7 +168,7 @@ class ACLPlugin extends ServerPlugin {
 		});
 	}
 
-	function propPatch($path, PropPatch $propPatch) {
+	public function propPatch(string $path, PropPatch $propPatch): void {
 		$node = $this->server->tree->getNodeForPath($path);
 		if (!$node instanceof Node) {
 			return;
@@ -235,6 +227,5 @@ class ACLPlugin extends ServerPlugin {
 
 			return true;
 		});
-
 	}
 }

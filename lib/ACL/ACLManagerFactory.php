@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 /**
  * @copyright Copyright (c) 2019 Robin Appelman <robin@icewind.nl>
  *
@@ -21,7 +23,6 @@
 
 namespace OCA\GroupFolders\ACL;
 
-
 use OCP\IUser;
 
 class ACLManagerFactory {
@@ -33,7 +34,7 @@ class ACLManagerFactory {
 		$this->rootFolderProvider = $rootFolderProvider;
 	}
 
-	public function getACLManager(IUser $user): ACLManager {
-		return new ACLManager($this->ruleManager, $user, $this->rootFolderProvider);
+	public function getACLManager(IUser $user, ?int $rootStorageId = null): ACLManager {
+		return new ACLManager($this->ruleManager, $user, $this->rootFolderProvider, $rootStorageId);
 	}
 }

@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 /**
  * @copyright Copyright (c) 2018 Robin Appelman <robin@icewind.nl>
  *
@@ -21,7 +23,6 @@
 
 namespace OCA\GroupFolders\Command;
 
-
 use OC\Core\Command\Base;
 use OCA\GroupFolders\Folder\FolderManager;
 use OCP\Constants;
@@ -31,15 +32,15 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 
 class ListCommand extends Base {
-	const PERMISSION_NAMES = [
+	public const PERMISSION_NAMES = [
 		Constants::PERMISSION_READ => 'read',
 		Constants::PERMISSION_UPDATE => 'write',
 		Constants::PERMISSION_SHARE => 'share',
 		Constants::PERMISSION_DELETE => 'delete'
 	];
 
-	private $folderManager;
-	private $rootFolder;
+	private FolderManager $folderManager;
+	private IRootFolder $rootFolder;
 
 	public function __construct(FolderManager $folderManager, IRootFolder $rootFolder) {
 		parent::__construct();
@@ -67,7 +68,7 @@ class ListCommand extends Base {
 			} else {
 				$output->writeln("<info>No folders configured</info>");
 			}
-			return;
+			return 0;
 		}
 
 		if ($outputType === self::OUTPUT_FORMAT_JSON || $outputType === self::OUTPUT_FORMAT_JSON_PRETTY) {
@@ -91,6 +92,7 @@ class ListCommand extends Base {
 			}, $folders));
 			$table->render();
 		}
+		return 0;
 	}
 
 	private function permissionsToString(int $permissions): string {

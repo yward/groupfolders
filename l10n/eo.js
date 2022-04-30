@@ -1,12 +1,6 @@
 OC.L10N.register(
     "groupfolders",
     {
-    "Are you sure you want to delete \"{folderName}\" and all files inside? This operation can not be undone" : "Ĉu vi vere volas forigi „{folderName}“ kaj ties enajn dosierojn? Tio ne povas esti nuligita.",
-    "Delete \"{folderName}\"?" : "Ĉu forigi „{folderName}“?",
-    "Folder name" : "Dosierujnomo",
-    "Groups" : "Grupoj",
-    "Quota" : "Kvoto",
-    "Advanced Permissions" : "Detalaj permesoj",
     "Group folders" : "Grupdosierujoj",
     "Denied" : "Rifuzita",
     "Allowed" : "Permesita",
@@ -15,16 +9,21 @@ OC.L10N.register(
     "Inherit permission" : "Heredita permeso",
     "Deny" : "Rifuzi",
     "Allow" : "Permesi",
-    "Groupfolder" : "Grupdosierujo",
     "Read" : "Legi",
     "Write" : "Skribi",
     "Create" : "Krei",
     "Delete" : "Forigi",
     "Share" : "Kunhavigi",
     "You" : "Vi",
-    "(Group)" : "(grupo)",
     "Remove access rule" : "Forigi alirregulon",
     "Add advanced permission rule" : "Aldoni detalan permesregulon",
-    "Select a user or group" : "Elektu uzanton aŭ grupon"
+    "Select a user or group" : "Elektu uzanton aŭ grupon",
+    "Group" : "Grupo",
+    "Delete \"{folderName}\"?" : "Ĉu forigi „{folderName}“?",
+    "Folder name" : "Dosierujnomo",
+    "Groups" : "Grupoj",
+    "Quota" : "Kvoto",
+    "Advanced Permissions" : "Detalaj permesoj",
+    "Are you sure you want to delete \"{folderName}\" and all files inside? This operation can not be undone" : "Ĉu vi vere volas forigi „{folderName}“ kaj ties enajn dosierojn? Tio ne povas esti nuligita."
 },
 "nplurals=2; plural=(n != 1);");

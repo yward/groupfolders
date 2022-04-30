@@ -1,6 +1,9 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 /**
  * @copyright Copyright (c) 2018 Robin Appelman <robin@icewind.nl>
+ * @copyright Copyright (c) 2021 Carl Schwan <carl@carlschwan.eu>
  *
  * @license GNU AGPL version 3 or any later version
  *
@@ -22,14 +25,14 @@
 namespace OCA\GroupFolders\BackgroundJob;
 
 use OCA\GroupFolders\Versions\GroupVersionsExpireManager;
+use OCP\BackgroundJob\TimedJob;
+use OCP\AppFramework\Utility\ITimeFactory;
 
-class ExpireGroupVersions extends \OC\BackgroundJob\TimedJob {
+class ExpireGroupVersions extends TimedJob {
+	private GroupVersionsExpireManager $expireManager;
 
-	const ITEMS_PER_SESSION = 1000;
-
-	private $expireManager;
-
-	public function __construct(GroupVersionsExpireManager $expireManager) {
+	public function __construct(GroupVersionsExpireManager $expireManager, ITimeFactory $timeFactory) {
+		parent::__construct($timeFactory);
 		// Run once per hour
 		$this->setInterval(60 * 60);
 
